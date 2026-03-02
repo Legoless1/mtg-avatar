@@ -306,20 +306,18 @@ function updateProgress(){
 }
 
 /* Save / Load */
-document.getElementById("saveBtn").onclick = async function() {
+
+document.getElementById("saveBtn").onclick = async function () {
 
     const owned = [];
 
-    rows.forEach(row => {
-        const cb = row.querySelector("input");
-        if (!cb || !cb.checked) return;
-
-        const cells = row.querySelectorAll("td");
-        const key = cells[0].textContent.trim() + "|" +
-                    cells[1].textContent.trim() + "|" +
-                    cells[3].textContent.trim();
-
-        owned.push(key);
+    document.querySelectorAll("#tableBody tr").forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.checked) {
+            const cells = row.querySelectorAll("td");
+            const key = cells[0].innerText + "|" + cells[1].innerText + "|" + cells[3].innerText;
+            owned.push(key);
+        }
     });
 
     const payload = {
@@ -327,30 +325,41 @@ document.getElementById("saveBtn").onclick = async function() {
         owned: owned
     };
 
-    const jsonData = JSON.stringify(payload, null, 2);
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
 
-    if (!window.showSaveFilePicker) {
-        alert("Save requires a Chromium-based browser.");
-        return;
+    // Modern browsers (Chromium, Edge, etc.)
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: "grandmaster-checklist.json",
+                types: [{
+                    description: "JSON File",
+                    accept: { "application/json": [".json"] }
+                }]
+            });
+
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return;
+        } catch (e) {
+            // user cancelled — do nothing
+            return;
+        }
     }
 
-    try {
-        const handle = await window.showSaveFilePicker({
-            suggestedName: "grandmaster-checklist.json",
-            types: [{
-                description: "JSON Files",
-                accept: { "application/json": [".json"] }
-            }]
-        });
-
-        const writable = await handle.createWritable();
-        await writable.write(jsonData);
-        await writable.close();
-
-    } catch (err) {
-        // User cancelled dialog — do nothing
-    }
+    // Universal fallback (Firefox, Safari, iOS)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "grandmaster-checklist.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 };
+
 
 document.getElementById("loadBtn").onclick = function() {
 
