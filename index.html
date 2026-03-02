@@ -306,43 +306,108 @@ function updateProgress(){
 }
 
 /* Save / Load */
-function getOwned(){
-    return rows.filter(r=>r.querySelector("input").checked)
-               .map(r=>parseInt(r.dataset.index));
-}
+document.getElementById("saveBtn").onclick = async function() {
 
-function applyOwned(arr){
-    rows.forEach(r=>r.querySelector("input").checked=arr.includes(parseInt(r.dataset.index)));
-    updateProgress();
-}
+    const owned = [];
 
-document.getElementById("saveBtn").addEventListener("click",async()=>{
-    if(window.showSaveFilePicker){
-        if(!fileHandle){
-            fileHandle=await window.showSaveFilePicker({
-                types:[{description:"JSON",accept:{"application/json":[".json"]}}]
-            });
-        }
-        const writable=await fileHandle.createWritable();
-        await writable.write(JSON.stringify({version:1,owned:getOwned()},null,2));
-        await writable.close();
-    } else alert("Save requires Chromium-based browser.");
-});
+    rows.forEach(row => {
+        const cb = row.querySelector("input");
+        if (!cb || !cb.checked) return;
 
-document.getElementById("loadBtn").addEventListener("click",()=>{
-    const input=document.createElement("input");
-    input.type="file";
-    input.accept=".json";
-    input.onchange=e=>{
-        const reader=new FileReader();
-        reader.onload=ev=>{
-            const parsed=JSON.parse(ev.target.result);
-            if(parsed.owned) applyOwned(parsed.owned);
-        };
-        reader.readAsText(e.target.files[0]);
+        const cells = row.querySelectorAll("td");
+        const key = cells[0].textContent.trim() + "|" +
+                    cells[1].textContent.trim() + "|" +
+                    cells[3].textContent.trim();
+
+        owned.push(key);
+    });
+
+    const payload = {
+        version: 2,
+        owned: owned
     };
+
+    const jsonData = JSON.stringify(payload, null, 2);
+
+    if (!window.showSaveFilePicker) {
+        alert("Save requires a Chromium-based browser.");
+        return;
+    }
+
+    try {
+        const handle = await window.showSaveFilePicker({
+            suggestedName: "grandmaster-checklist.json",
+            types: [{
+                description: "JSON Files",
+                accept: { "application/json": [".json"] }
+            }]
+        });
+
+        const writable = await handle.createWritable();
+        await writable.write(jsonData);
+        await writable.close();
+
+    } catch (err) {
+        // User cancelled dialog — do nothing
+    }
+};
+
+document.getElementById("loadBtn").onclick = function() {
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+
+    input.onchange = function(e) {
+
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = function(ev) {
+
+            let parsed;
+
+            try {
+                parsed = JSON.parse(ev.target.result);
+            } catch {
+                alert("Invalid JSON file.");
+                return;
+            }
+
+            if (parsed.version !== 2 || !Array.isArray(parsed.owned)) {
+                alert("Unsupported JSON version.");
+                return;
+            }
+
+            // Clear all checkboxes
+            rows.forEach(r => {
+                const cb = r.querySelector("input");
+                if (cb) cb.checked = false;
+            });
+
+            // Apply owned state
+            rows.forEach(r => {
+                const cells = r.querySelectorAll("td");
+                const key = cells[0].textContent.trim() + "|" +
+                            cells[1].textContent.trim() + "|" +
+                            cells[3].textContent.trim();
+
+                if (parsed.owned.includes(key)) {
+                    const cb = r.querySelector("input");
+                    if (cb) cb.checked = true;
+                }
+            });
+
+            updateProgress();
+        };
+
+        reader.readAsText(file);
+    };
+
     input.click();
-});
+};
 
 updateProgress();
 
