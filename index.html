@@ -357,11 +357,16 @@ document.getElementById("loadBtn").onclick = function() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
+    input.style.display = "none";
+    document.body.appendChild(input);
 
     input.onchange = function(e) {
 
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            document.body.removeChild(input);
+            return;
+        }
 
         const reader = new FileReader();
 
@@ -373,41 +378,48 @@ document.getElementById("loadBtn").onclick = function() {
                 parsed = JSON.parse(ev.target.result);
             } catch {
                 alert("Invalid JSON file.");
+                document.body.removeChild(input);
                 return;
             }
 
             if (parsed.version !== 2 || !Array.isArray(parsed.owned)) {
                 alert("Unsupported JSON version.");
+                document.body.removeChild(input);
                 return;
             }
 
-            // Clear all checkboxes
+            const ownedSet = new Set(parsed.owned.map(k => k.trim()));
+
             rows.forEach(r => {
                 const cb = r.querySelector("input");
                 if (cb) cb.checked = false;
             });
 
-            // Apply owned state
             rows.forEach(r => {
                 const cells = r.querySelectorAll("td");
                 const key = cells[0].textContent.trim() + "|" +
                             cells[1].textContent.trim() + "|" +
                             cells[3].textContent.trim();
 
-                if (parsed.owned.includes(key)) {
+                if (ownedSet.has(key)) {
                     const cb = r.querySelector("input");
                     if (cb) cb.checked = true;
                 }
             });
 
             updateProgress();
+            document.body.removeChild(input);
+        };
+
+        reader.onerror = function() {
+            document.body.removeChild(input);
         };
 
         reader.readAsText(file);
     };
 
     input.click();
-};
+};;
 
 updateProgress();
 
