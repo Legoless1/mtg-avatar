@@ -85,6 +85,21 @@ thead th { position:sticky; top:0; background:var(--header); z-index:10; }
     .controls, .sort-btn, .filter-btn, .filter-box, .theme-toggle, .footer { display:none !important; }
     body { margin:10mm; background:white; color:black; }
 }
+
+tbody tr {
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+tbody tr:hover {
+    background: rgba(0,0,0,0.05);
+    box-shadow: 0 0 12px rgba(0,0,0,0.15);
+}
+
+body.dark tbody tr:hover {
+    background: rgba(255,255,255,0.06);
+    box-shadow: 0 0 12px rgba(255,255,255,0.08);
+}
+
 </style>
 </head>
 
