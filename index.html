@@ -218,6 +218,7 @@ data.forEach((row,idx)=>{
 
 const rows=[...body.querySelectorAll("tr")];
 const search=document.getElementById("search");
+const filterBoxes=[...document.querySelectorAll(".filter-box")];
 
 /* Column width lock */
 window.addEventListener("load",()=>{
@@ -231,20 +232,37 @@ window.addEventListener("load",()=>{
 });
 
 /* Filter logic */
+function getFilterState(box){
+    const inputs=[...box.querySelectorAll("input")];
+    const allInput=inputs.find(input=>input.value==="__ALL__");
+    const valueInputs=inputs.filter(input=>input.value!=="__ALL__");
+    const checkedValues=valueInputs.filter(input=>input.checked).map(input=>input.value);
+    const allChecked=checkedValues.length===valueInputs.length;
+
+    if(allInput){
+        allInput.checked=allChecked;
+        allInput.indeterminate=checkedValues.length>0 && !allChecked;
+    }
+
+    return {checkedValues, allChecked};
+}
+
 function applyFilters(){
     const val=search.value.toLowerCase();
+    const filterStates=filterBoxes.map(box=>({
+        col:parseInt(box.id.split("-")[1], 10),
+        ...getFilterState(box)
+    }));
+
     rows.forEach(r=>{
         let visible=r.textContent.toLowerCase().includes(val);
 
-        document.querySelectorAll(".filter-box").forEach(box=>{
-            const col=parseInt(box.id.split("-")[1]);
-            const checked=[...box.querySelectorAll("input:checked")].map(i=>i.value);
-
-            if(!checked.includes("__ALL__")){
+        filterStates.forEach(({col, checkedValues, allChecked})=>{
+            if(!allChecked){
                 if(header[col]==="Owned"){
                     const state=r.querySelector("input").checked?"Yes":"No";
-                    if(!checked.includes(state)) visible=false;
-                } else if(!checked.includes(r.children[col].textContent))
+                    if(!checkedValues.includes(state)) visible=false;
+                } else if(!checkedValues.includes(r.children[col].textContent))
                     visible=false;
             }
         });
@@ -264,13 +282,22 @@ document.querySelectorAll(".filter-btn").forEach(btn=>{
     });
 });
 
-document.querySelectorAll(".filter-box").forEach(box=>box.addEventListener("click",e=>e.stopPropagation()));
-document.addEventListener("click",()=>document.querySelectorAll(".filter-box").forEach(b=>b.style.display="none"));
+filterBoxes.forEach(box=>box.addEventListener("click",e=>e.stopPropagation()));
+document.addEventListener("click",()=>filterBoxes.forEach(box=>box.style.display="none"));
 
 document.querySelectorAll(".filter-box input").forEach(cb=>{
     cb.addEventListener("change",function(){
-        if(this.value==="__ALL__")
-            this.closest(".filter-box").querySelectorAll("input").forEach(i=>i.checked=this.checked);
+        const box=this.closest(".filter-box");
+
+        if(this.value==="__ALL__"){
+            box.querySelectorAll("input").forEach(input=>{
+                input.checked=this.checked;
+                input.indeterminate=false;
+            });
+        } else {
+            getFilterState(box);
+        }
+
         applyFilters();
     });
 });
